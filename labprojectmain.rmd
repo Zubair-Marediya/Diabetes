@@ -1,0 +1,1504 @@
+---
+title: 'Stat 135: Lab Project'
+author: "Zubair Marediya, Temi Lal, Charles Thorson"
+date: "Tuesday, May 05, 2015"
+output: pdf_document
+---
+
+***
+
+Before beginning any part of this project, let's import our data.
+
+```{r}
+data = read.csv("diabetes.csv")
+```
+
+The last 16 patients were held out for testing, so we will remove them from our data.
+
+```{r}
+data = data[1:359, ]
+```
+
+***
+
+# Part 2: Accessing Data, Visualization and Summarization
+
+***
+
+## Question 1
+
+Let's create the histogram first. We will use ggplot2 for all visuals. 
+
+```{r}
+glyhb = data$glyhb
+require("ggplot2")
+ggplot(data) + geom_histogram(aes(x = glyhb), binwidth = 0.5, col = "white", fill = "#56B1F7") +
+  ggtitle("Histogram of Glycosolated Hemoglobin") + 
+  xlab("Glycosolated Hemoglobin") + ylab("Frequency")
+```
+
+Now let's create the boxplot.
+
+```{r}
+boxplot(glyhb, horizontal = TRUE, col = "white", border = "#56B1F7",
+        xlab = "Glycosolated Hemoglobin",
+        main = "Boxplot of Glycosolated Hemoglobin")
+```
+
+Lastly let's create the qqplot.
+
+```{r}
+exp.sample = rnorm(n = 10000)
+y1y2 = quantile(glyhb, probs = c(0.25, 0.75))
+x1x2 = quantile(exp.sample, probs = c(0.25, 0.75))
+slope = (y1y2[2] - y1y2[1])/(x1x2[2] - x1x2[1])
+intercept = slope * (0 - x1x2[1]) + y1y2[1]
+ggplot(data, aes(sample = glyhb)) + stat_qq(col = "#56B1F7") +
+  ggtitle("Glycosolated Hemoglobin vs. Normal Distribution") +
+  xlab("Theoretical") +
+  ylab("Sample") +
+  geom_abline(intercept = intercept, slope = slope) 
+```
+
+From seeing all three visuals above, we see that the distribution is skewed to the right with a heavy tail. Thus, it does not follow a Gaussian distribution. The boxplot shows us that there are many outliers. The center seems to be around 5, and the bulk of the data falls between 4 and 6. Our qq-plot follows a normal well until we hit the value of 1 on the Theoretical axis. At that point, our outliers kick in, and we do not follow a Gaussian distribution anymore. It seems there are a few people with very high levels of Glycosolated Hemoglobin. We might suspect that these people are in poor health and have Type II diabetes.
+
+***
+
+## Question 2
+
+Now let's repeat this for cholesterol. 
+
+```{r}
+chol = data$chol
+
+# Produce the histogram
+
+ggplot(data) + geom_histogram(aes(x = chol), binwidth = 15, col = "white", fill = "#56B1F7") +
+  ggtitle("Histogram of Cholesterol") + 
+  xlab("Cholesterol") + ylab("Frequency")
+
+# Produce the boxplot
+
+boxplot(chol, horizontal = TRUE, col = "white", border = "#56B1F7",
+        xlab = "Cholesterol",
+        main = "Boxplot of Cholesterol")
+
+# Produce the qq-plot
+
+exp.sample = rnorm(n = 10000)
+y1y2 = quantile(chol, probs = c(0.25, 0.75))
+x1x2 = quantile(exp.sample, probs = c(0.25, 0.75))
+slope = (y1y2[2] - y1y2[1])/(x1x2[2] - x1x2[1])
+intercept = slope * (0 - x1x2[1]) + y1y2[1]
+ggplot(data, aes(sample = chol)) + stat_qq(col = "#56B1F7") +
+  ggtitle("Cholesterol vs. Normal Distribution") +
+  xlab("Theoretical") +
+  ylab("Sample") +
+  geom_abline(intercept = intercept, slope = slope) 
+```
+
+The histogram for Cholesterol looks fairly Gaussian centered around 200. There are some outliers above 400 and one low outlier below 100. When you compare the boxplot to that of Glycosolated Hemoglobin, you see that there are fewer outliers. When observing the qq-plot, the data follows the Gaussian distribution fairly well, with the exception of a few outliers. 
+
+Overall, cholesterol is better approximated with Gaussian distribution than Glycosolated Hemoglobin.
+
+***
+
+## Question 3
+
+First let's make the scatterplot of bp.1s vs. bp.1d.
+
+```{r}
+ggplot(data, aes(x = bp.1d, y = bp.1s)) +
+    geom_point(shape = 16, col = "#56B1F7", size = 3) + 
+    geom_smooth(method = lm, se = FALSE) + 
+    xlab("Diastolic Blood Pressure") + 
+    ylab("Systolic Blood Pressure") + 
+    ggtitle("Systolic Blood Pressure vs. Diastolic Blood Pressure")
+```
+
+Now let's make the scatterplot of age vs. height. 
+
+```{r}
+ggplot(data, aes(x = height, y = age)) +
+    geom_point(shape = 16, col = "#56B1F7", size = 3) + 
+    geom_smooth(method = lm, se = FALSE) + 
+    xlab("Height") + 
+    ylab("Age") + 
+    ggtitle("Age vs. Height")
+```
+
+Observing the first scatterplot shows a fair increase in Systolic Blood Pressure (bp.1s) as Diastolic Blood Pressure (bp.1d) increases. A slight linear relationship is evident, thus these features do not seem independent. 
+
+Observing the second scatterplot shows no relationship between the two variables. The plot shows random scatter, and the regression line is fairly horizontal. This is what we would expect because everyone in our sample is 19 years or older, and wtihin this age bracket, people are usually fully grown, so we conclude that these features are independent. 
+
+***
+
+## Question 4
+
+First let's make a logical vector in our "data" data frame that's conditional on whether glyhb >= 7 or glyhb < 7. 
+
+```{r}
+diabetes_locs = glyhb >= 7
+diabetes = c()
+diabetes[diabetes_locs] = "Greater than or equal to 7 (Diabetes)"
+diabetes[!diabetes_locs] = "Less than 7 (No Diabetes)"
+data$diabetes = factor(diabetes)
+```
+
+Now let's begin making boxplots for each available feature conditional on the statement above. 
+
+Let's first make conditional boxplots for Cholesterol.
+
+```{r}
+ggplot(data, aes(x = diabetes, y = chol)) + 
+  geom_boxplot(aes(fill = diabetes)) + 
+  coord_flip() + 
+  theme(legend.position="none") + 
+  ylab("Cholesterol") +
+  xlab("Glycosolated Hemoglobin") +
+  ggtitle("Boxplots of Cholesterol by Glycosolated Hemoglobin")
+```
+
+Now let's make them for Stabilized Glucose.
+
+```{r}
+ggplot(data, aes(x = diabetes, y = stab.glu)) + 
+  geom_boxplot(aes(fill = diabetes)) + 
+  coord_flip() + 
+  theme(legend.position="none") + 
+  ylab("Stabilized Glucose") +
+  xlab("Glycosolated Hemoglobin") +
+  ggtitle("Boxplots of Stabilized Glucose by\n Glycosolated Hemoglobin")
+```
+
+Now let's make them for High Density Lipoprotein.
+
+```{r}
+ggplot(data, aes(x = diabetes, y = hdl)) + 
+  geom_boxplot(aes(fill = diabetes)) + 
+  coord_flip() + 
+  theme(legend.position="none") + 
+  ylab("High Density Lipoprotein") +
+  xlab("Glycosolated Hemoglobin") +
+  ggtitle("Boxplots of High Density Lipoprotein by\n Glycosolated Hemoglobin")
+```
+
+Now let's make them for Ratio (chol/hdl).
+
+```{r}
+ggplot(data, aes(x = diabetes, y = ratio)) + 
+  geom_boxplot(aes(fill = diabetes)) + 
+  coord_flip() + 
+  theme(legend.position="none") + 
+  ylab("Ratio (chol/hdl)") +
+  xlab("Glycosolated Hemoglobin") +
+  ggtitle("Boxplots of Ratio (chol/hdl) by\n Glycosolated Hemoglobin")
+```
+
+Now let's make them for Age.
+
+```{r}
+ggplot(data, aes(x = diabetes, y = age)) +
+  geom_boxplot(aes(fill = diabetes)) +
+  coord_flip() +
+  theme(legend.position="none") +
+  ylab("Age") +
+  xlab("Glycosolated Hemoglobin") +
+  ggtitle("Boxplots of Age by Glycosolated Hemoglobin")
+```
+
+Now let's make them for Height.
+
+```{r}
+ggplot(data, aes(x = diabetes, y = height)) +
+  geom_boxplot(aes(fill = diabetes)) +
+  coord_flip() +
+  theme(legend.position="none") +
+  ylab("Height") +
+  xlab("Glycosolated Hemoglobin") +
+  ggtitle("Boxplots of Height by Glycosolated Hemoglobin")
+```
+
+Now let's make them for Weight.
+
+```{r}
+ggplot(data, aes(x = diabetes, y = weight)) +
+  geom_boxplot(aes(fill = diabetes)) +
+  coord_flip() +
+  theme(legend.position="none") +
+  ylab("Weight") +
+  xlab("Glycosolated Hemoglobin") +
+  ggtitle("Boxplots of Weight by Glycosolated Hemoglobin")
+```
+
+Now let's make them for Systolic Blood Pressure.
+
+```{r}
+ggplot(data, aes(x = diabetes, y = bp.1s)) +
+  geom_boxplot(aes(fill = diabetes)) +
+  coord_flip() +
+  theme(legend.position="none") +
+  ylab("First Systolic Blood Pressure") +
+  xlab("Glycosolated Hemoglobin") +
+  ggtitle("Boxplots of First Systolic Blood Pressure by\n Glycosolated Hemoglobin")
+```
+
+Now let's make them for Diastolic Blood Pressure.
+
+```{r}
+ggplot(data, aes(x = diabetes, y = bp.1d)) +
+  geom_boxplot(aes(fill = diabetes)) +
+  coord_flip() +
+  theme(legend.position="none") +
+  ylab("First Diastolic Blood Pressure") +
+  xlab("Glycosolated Hemoglobin") +
+  ggtitle("Boxplots of First Diastolic Blood Pressure by\n Glycosolated Hemoglobin")
+```
+
+Now let's make them for Waist size.
+
+```{r}
+ggplot(data, aes(x = diabetes, y = waist)) +
+  geom_boxplot(aes(fill = diabetes)) +
+  coord_flip() +
+  theme(legend.position="none") +
+  ylab("Waist (inches)") +
+  xlab("Glycosolated Hemoglobin") +
+  ggtitle("Boxplots of Waist by Glycosolated Hemoglobin")
+```
+
+Now let's make them for Hip size.
+
+```{r}
+ggplot(data, aes(x = diabetes, y = hip)) +
+  geom_boxplot(aes(fill = diabetes)) +
+  coord_flip() +
+  theme(legend.position="none") +
+  ylab("Hip Circumference (inches)") +
+  xlab("Glycosolated Hemoglobin") +
+  ggtitle("Boxplots of Hip Circumference by\n Glycosolated Hemoglobin")
+```
+
+Now let's make them for Frame size. We have some blanks in our data for this variable, so we will first remove those. We will add a dotted line for Glyhb = 7, so we know where we classify by diabetes.  
+
+```{r}
+ggplot(data[data$frame != "", ], aes(x = frame, y = glyhb)) +
+  geom_boxplot(aes(fill = frame)) +
+  coord_flip() +
+  theme(legend.position="none") +
+  ylab("Glycosolated Hemoglobin") +
+  xlab("Frame") +
+  ggtitle("Boxplots of Glycosolated Hemoglobin by Frame") + 
+  geom_hline(yintercept = 7, linetype = "dashed")
+```
+
+Now let's make them for Postprandial Time.
+
+```{r}
+ggplot(data, aes(x = diabetes, y = time.ppn)) +
+  geom_boxplot(aes(fill = diabetes)) +
+  coord_flip() +
+  theme(legend.position="none") +
+  ylab("Minutes After Eating when Glucose Level Measured (time.ppn)") +
+  xlab("Glycosolated Hemoglobin") +
+  ggtitle("Boxplots of Minutes After Eating when Glucose Level \nMeasured by Glycosolated Hemoglobin")
+```
+
+Now let's make them for Location. 
+
+```{r}
+ggplot(data, aes(x = location, y = glyhb)) +
+  geom_boxplot(aes(fill = location)) +
+  coord_flip() +
+  theme(legend.position="none") +
+  ylab("Glycosolated Hemoglobin") +
+  xlab("Location") +
+  ggtitle("Boxplots of Glycosolated Hemoglobin\n by Location") + 
+  geom_hline(yintercept = 7, linetype = "dashed")
+```
+
+Now let's make them for Gender. 
+
+```{r}
+ggplot(data, aes(x = gender, y = glyhb)) +
+  geom_boxplot(aes(fill = gender)) +
+  coord_flip() +
+  theme(legend.position="none") +
+  ylab("Glycosolated Hemoglobin") +
+  xlab("Gender") +
+  ggtitle("Boxplots of Glycosolated Hemoglobin\n by Gender") + 
+  geom_hline(yintercept = 7, linetype = "dashed")
+```
+
+***
+
+## Question 5
+
+First let's create the BMI and WHR variables and then add them to our data frame.
+
+```{r}
+data$BMI = 703 * (data$weight / (data$height)^2)
+data$WHR = data$waist / data$hip
+```
+
+Now let's compute their empirical distributions. Let's make one for BMI first. 
+
+```{r}
+ggplot(data) + geom_histogram(aes(x = BMI), binwidth = 2.5, col = "white", fill = "#56B1F7") +
+  ggtitle("Histogram of BMI") + 
+  xlab("BMI") + ylab("Frequency")
+```
+
+Now let's make one for WHR.
+
+```{r}
+ggplot(data) + geom_histogram(aes(x = WHR), binwidth = 0.03, col = "white", fill = "#56B1F7") +
+  ggtitle("Histogram of WHR") + 
+  xlab("WHR") + ylab("Frequency")
+```
+
+Now let's compute their conditional boxplots of glyhb. Let's make one for BMI first. 
+
+```{r}
+ggplot(data, aes(x = diabetes, y = BMI)) +
+  geom_boxplot(aes(fill = diabetes)) +
+  coord_flip() +
+  theme(legend.position="none") +
+  ylab("BMI") +
+  xlab("Glycosolated Hemoglobin") +
+  ggtitle("Boxplots of BMI Measured by\n Glycosolated Hemoglobin")
+```
+
+Now let's make one for WHR.
+
+```{r}
+ggplot(data, aes(x = diabetes, y = WHR)) +
+  geom_boxplot(aes(fill = diabetes)) +
+  coord_flip() +
+  theme(legend.position="none") +
+  ylab("WHR") +
+  xlab("Glycosolated Hemoglobin") +
+  ggtitle("Boxplots of WHR Measured by\n Glycosolated Hemoglobin")
+```
+
+*** 
+
+## Question 6
+
+There does seem to be a difference in cholesterol level between those who have diabetes and those who do not. Though this feature looks like it is related to the presence of type-II diabetes, it might not be the best predictor we have.
+
+The difference in stabilized glucose level between those who have and do not have diabetes seems very significant. Not only are the distributions centered at different values, but their variances differ greatly as well.
+
+HDL is similar to cholesterol in the sense that there does seem to be a difference between people who have and do not have diabetes. Once again, this might not be the most telling indicator, but there does seem to be a relationship.
+
+The ratio of cholesterol to HDL seems lower for those who do not have diabetes. Overall, ratio seems like it has potential to be related to type-II diabetes but we would have to analyze the data more to know for sure.
+
+Age seems very related to the presence of type-II diabetes. The average age for those with diabetes seems much higher than the average age for those without. The variance of the ages of those without diabetes is higher than the variance of those without.
+
+Height seems almost identical among both groups. It does not seem very relevant to the presence of diabetes. Since type-II diabetes is related to obesity, we should pay more attention to the ratio of height to weight instead of height alone.
+
+It does seem that those with diabetes have a higher weight than those without. However, once again, a ratio of height to weight should be a better indicator. Someone might have a very high weight but also be very tall, meaning that they are not necessarily unhealthy.
+
+First systolic blood pressure is higher for those with diabetes than those without. The distribution of first systolic blood pressure for those without diabetes takes on a larger range. It seems that this feature is significant.
+
+The boxplots of first diastolic blood pressure seem to overlap a lot so the feature does not seem that related to the presence of type-II diabetes.
+
+At a first glance, waist size seems quite relevant to diabetes. At the same time, looking at a ratio of waist to hip size is more informative and this might be a better indicator.
+
+The boxplots of hip size for each group once again overlap a lot. Hip circumference on its own might not be the most telling feature.
+
+The distributions of the value of glycosolated hemoglobin level are significantly different among frame sizes. However, the majority of the data for glycosolated hemoglobin for each frame size is below seven. In other words, frame size is not a good indicator of diabetes.
+
+The boxplots of postprandial time for the two groups are close to identical. This feature is not related to the presence of type-II diabetes.
+
+Location does not seem relevant to whether or not a person has type-II diabetes.
+
+Gender does not seem related to the presence of type-II diabetes. The distributions of glycosolated hemoglobin level are similar for both genders.
+
+BMI seems different between those who have diabetes and those who do not. A higher BMI is related to the presence of diabetes. BMI is a ratio, so it gives us information about both height and weight.
+
+WHR also looks relevant to type-II diabetes. The boxplots seem fairly distinct. Because this is a ratio of two seemingly predictive features, it seems like a good indicator.
+
+***
+
+# Part 3: Parametric Inference
+
+***
+
+## Question 1:
+
+Let's fit BMI to a Gamma distribution. There are two parameterizations of this. We will use the one with alpha and beta. 
+
+First we begin by finding the expected values of the first and second moments. 
+
+```{r}
+bmi = data$BMI
+e1 <- mean(bmi)
+e1
+e2 <- mean(bmi^2)
+e2
+```
+
+Next, we will use these values to find alpha and beta by setting them equal to the true moments.
+
+```{r}
+b <- e1/(e2 - e1^2)
+b
+a <- e1^2/(e2 - e1^2)
+a
+```
+
+Now we will use a non-parametric bootstrap to find confidence intervals around alpha and beta. Let's first find all our values of alpha and beta. 
+
+```{r}
+gamma.est <- matrix(0, 1000, 2)
+for (i in 1:1000) {
+  boot <- sample(bmi, 1000, replace = T)
+  e1 <- mean(boot)
+  e2 <- mean(boot^2)
+  gamma.est[i,1] <- e1^2/(e2 - e1^2)
+  gamma.est[i,2] <- e1/(e2 - e1^2)
+}
+```
+
+Now we can compute our 95% confidence intervals for each parameter. We will compute a percentile confidence interval.
+
+For alpha, our 95% CI is:
+
+```{r}
+pboot.perc.a <- quantile(gamma.est[,1], probs = c(0.025, 0.975))
+pboot.perc.a
+```
+
+For beta, our 95% CI is:
+
+```{r}
+pboot.perc.b <- quantile(gamma.est[,2], probs = c(0.025, 0.975))
+pboot.perc.b
+```
+
+Lastly, let's fit our Gamma distribution to our empirical histogram. 
+
+```{r}
+ggplot(data) + geom_histogram(aes(x = BMI, y = ..density..), binwidth = 2.5, col = "white", fill = "#56B1F7") +
+  stat_function(fun = dgamma, args = list(shape = a, rate = b), size = 1.5) +
+  ggtitle("Histogram of BMI") + 
+  xlab("BMI") + ylab("Density")
+```
+
+***
+
+## Question 2
+
+Let's fit WHR to a Gaussian distribution.
+
+First let's solve for the MLE of the mean and the variance.
+
+```{r}
+whr = data$WHR
+mle.u <- mean(whr)
+mle.u
+mle.sig <- sqrt(mean((whr - mle.u)^2))
+mle.sig
+```
+
+Now let's use nonparametric bootstrap to generate our means and variances. 
+
+```{r}
+whr.est <- matrix(0, 1000, 2)
+for (i in 1:1000) {
+boot <- sample(whr, 1000, replace = T)
+      whr.est[i,1] <- mean(boot)
+     whr.est[i,2] <- var(boot)
+}
+```
+
+Now let's find our 95% CI for the mean and variance.
+
+```{r}
+pboot.perc.mean <- quantile(whr.est[,1], probs = c(0.025, 0.975))
+pboot.perc.mean
+pboot.perc.var <- quantile(whr.est[,2], probs = c(0.025, 0.975))
+pboot.perc.var
+```
+
+Lastly, let's fit our Gaussian distribution to our empirical histogram. 
+
+```{r}
+ggplot(data) + geom_histogram(aes(x = WHR, y = ..density..), binwidth = 0.03, col = "white", fill = "#56B1F7") +
+  stat_function(fun = dnorm, args = list(mean = mle.u, sd = mle.sig), size = 1.5) +
+  ggtitle("Histogram of WHR") + 
+  xlab("WHR") + ylab("Density")
+```
+
+***
+
+## Question 3
+
+First let's deal with the case of diabetic males.
+
+We will use nonparametric bootstrap to generate BMI and WHR values for this population. 
+
+```{r}
+est.maleND <- matrix(0, 1000, 4)
+for (i in 1:1000) {
+  boot <- sample(bmi[data$glyhb >= 7 & data$gender == "male"], 1000, replace = T)
+  e1 <- mean(boot)
+  e2 <- mean(boot^2)
+  est.maleND[i,1] <- e1^2/(e2 - e1^2)
+  est.maleND[i,2] <- e1/(e2 - e1^2)
+
+ boot <- sample(whr[data$glyhb >= 7 & data$gender == "male"], 1000, replace = T)
+  est.maleND[i,3] <- mean(boot)
+  est.maleND[i,4] <- var(boot)
+}
+```
+
+Now let's find 95% Confidence Intervals for the alpha & beta parameters of BMI and the mean & variance parameters of WHR.
+
+```{r}
+pboot.perc.a.maleD <- quantile(est.maleND[,1], probs = c(0.025, 0.975))
+pboot.perc.a.maleD
+
+pboot.perc.b.maleD <- quantile(est.maleND[,2], probs = c(0.025, 0.975))
+pboot.perc.b.maleD
+
+pboot.perc.mu.maleD <- quantile(est.maleND[,3], probs = c(0.025, 0.975))
+pboot.perc.mu.maleD
+
+pboot.perc.var.maleD <- quantile(est.maleND[,4], probs = c(0.025, 0.975))
+pboot.perc.var.maleD
+```
+
+Now let's deal with the case of non-diabetic males.
+
+Let's boostrap for all parameters.
+
+```{r}
+est.maleND <- matrix(0, 1000, 4)
+for (i in 1:1000) {
+  boot <- sample(bmi[data$glyhb < 7 & data$gender == "male"], 1000, replace = T)
+  e1 <- mean(boot)
+  e2 <- mean(boot^2)
+  est.maleND[i,1] <- e1^2/(e2 - e1^2)
+  est.maleND[i,2] <- e1/(e2 - e1^2)
+
+boot <- sample(whr[data$glyhb < 7 & data$gender == "male"], 1000, replace = T)
+  est.maleND[i,3] <- mean(boot)
+  est.maleND[i,4] <- var(boot)
+}
+```
+
+Now let's find our 95% confidence intervals.
+
+```{r}
+pboot.perc.a.maleND <- quantile(est.maleND[,1], probs = c(0.025, 0.975))
+pboot.perc.a.maleND
+
+pboot.perc.b.maleND <- quantile(est.maleND[,2], probs = c(0.025, 0.975))
+pboot.perc.b.maleND
+
+pboot.perc.mu.maleND <- quantile(est.maleND[,3], probs = c(0.025, 0.975))
+pboot.perc.mu.maleND
+
+pboot.perc.var.maleND <- quantile(est.maleND[,4], probs = c(0.025, 0.975))
+pboot.perc.var.maleND
+```
+
+Now let's deal with the case of diabetic females.
+
+Let's boostrap for all parameters.
+
+```{r}
+est.femaleD <- matrix(0, 1000, 4)
+for (i in 1:1000) {
+  boot <- sample(bmi[data$glyhb >= 7 & data$gender == "female"], 1000, replace = T)
+  e1 <- mean(boot)
+  e2 <- mean(boot^2)
+  est.femaleD[i,1] <- e1^2/(e2 - e1^2)
+  est.femaleD[i,2] <- e1/(e2 - e1^2)
+
+boot <- sample(whr[data$glyhb >= 7 & data$gender == "female"], 1000, replace = T)
+  est.femaleD[i,3] <- mean(boot)
+  est.femaleD[i,4] <- var(boot)
+}
+```
+
+Now let's find our 95% confidence intervals.
+
+```{r}
+pboot.perc.a.femaleD <- quantile(est.femaleD[,1], probs = c(0.025, 0.975))
+pboot.perc.a.femaleD
+
+pboot.perc.b.femaleD <- quantile(est.femaleD[,2], probs = c(0.025, 0.975))
+pboot.perc.b.femaleD
+
+pboot.perc.mu.femaleD <- quantile(est.femaleD[,3], probs = c(0.025, 0.975))
+pboot.perc.mu.femaleD
+
+pboot.perc.var.femaleD <- quantile(est.femaleD[,4], probs = c(0.025, 0.975))
+pboot.perc.var.femaleD
+```
+
+Lastly, let's deal with the case of non-diabetic females.
+
+Let's boostrap for all parameters.
+
+```{r}
+est.femaleND <- matrix(0, 1000, 4)
+for (i in 1:1000) {
+  boot <- sample(bmi[data$glyhb < 7 & data$gender == "female"], 1000, replace = T)
+  e1 <- mean(boot)
+  e2 <- mean(boot^2)
+  est.femaleND[i,1] <- e1^2/(e2 - e1^2)
+  est.femaleND[i,2] <- e1/(e2 - e1^2)
+
+boot <- sample(whr[data$glyhb < 7 & data$gender == "female"], 1000, replace = T)
+  est.femaleND[i,3] <- mean(boot)
+  est.femaleND[i,4] <- var(boot)
+}
+```
+
+Now let's find our 95% confidence intervals.
+
+```{r}
+pboot.perc.a.femaleND <- quantile(est.femaleND[,1], probs = c(0.025, 0.975))
+pboot.perc.a.femaleND
+
+pboot.perc.b.femaleND <- quantile(est.femaleND[,2], probs = c(0.025, 0.975))
+pboot.perc.b.femaleND
+
+pboot.perc.mu.femaleND <- quantile(est.femaleND[,3], probs = c(0.025, 0.975))
+pboot.perc.mu.femaleND
+
+pboot.perc.var.femaleND <- quantile(est.femaleND[,4], probs = c(0.025, 0.975))
+pboot.perc.var.femaleND
+```
+
+Let's create a nice table to compare all our confidence intervals.
+
+```{r}
+
+all_CI = list(pboot.perc.a.maleD, pboot.perc.b.maleD, pboot.perc.mu.maleD, pboot.perc.var.maleD,
+           pboot.perc.a.maleND, pboot.perc.b.maleND, pboot.perc.mu.maleND, pboot.perc.var.maleD,
+           pboot.perc.a.femaleD, pboot.perc.b.femaleD, pboot.perc.mu.femaleD, pboot.perc.var.femaleD,
+           pboot.perc.a.femaleND, pboot.perc.b.femaleND, pboot.perc.mu.femaleND, pboot.perc.var.femaleND)
+
+# Apply this to convert into desired string
+pretty_CI = function(x) {
+  paste(toString(round(x[1], digits = 3)), "-", toString(round(x[2], digits = 3)), sep = " ")
+}
+
+simple_CI = sapply(all_CI, pretty_CI)
+CI_matrix = matrix(simple_CI, nrow = 4, byrow = TRUE)
+colnames(CI_matrix) = c("alpha", "beta", "mean", "variance")
+rownames(CI_matrix) = c("Diabetic Male", "Non-diabetic Male", "Diabetic Female", "Non-diabetic Female")
+CI_matrix
+```
+
+From the table above, we see that alpha is typically higher among diabetics than non-diabetics. We see that the same occurs for beta and the mean. However, the variance seems the same among all groups. 
+
+***
+
+# Part 4: Testing
+
+***
+
+## Question 1:
+
+There are two good ways to test if males and females are equally exposed to Type II diabetes. The first way is the chi-square test of homogeneity. 
+
+To do this test, let's first split our data into their 4 respective cells. 
+
+```{r}
+female.diabetics = length(which(data$gender=="female" & data$glyhb >= 7))
+female.nondiabetics = length(which(data$gender=="female" & data$glyhb < 7))
+
+male.diabetics = length(which(data$gender=="male" & data$glyhb >= 7))
+male.nondiabetics = length(which(data$gender=="male" & data$glyhb < 7))
+
+gender.mat = matrix(c(male.diabetics, male.nondiabetics, female.diabetics,
+                      female.nondiabetics), nrow=2, dimnames=list(c("Diabetic",
+                      "Not Diabetic"), c("Male", "Female")))
+gender.mat
+```
+
+Now let's run our chi-square test.
+
+```{r}
+chisq.test(gender.mat)
+```
+
+With one degree of freedom and a chi-square statistic of 0.1062, we get a p-value of
+0.7445 and fail to reject the null hypothesis that males and females are equally
+exposed to type-II diabetes.
+
+Now we will use our second way which is an equal means test of 2 proportions. 
+
+First we will need to convert data sets into 0s and 1s:
+
+```{r}
+female.df = data[data$gender=="female",]
+female.diab.status = vector()
+  for (i in 1:nrow(female.df)){
+  if (female.df$glyhb[i]>=7) {female.diab.status[i]=1
+  } else female.diab.status[i]=0
+}
+
+male.df = data[data$gender=="male",]
+male.diab.status = vector()
+for (i in 1:nrow(male.df)){
+  if (male.df$glyhb[i]>=7) {male.diab.status[i]=1
+  } else male.diab.status[i]=0
+}
+```
+
+Now we will run the t-test.
+
+```{r}
+t.test(female.diab.status, male.diab.status, alternative="two.sided", mu=0,
+       paired=FALSE, var.equal=FALSE, conf.level=0.95)
+```
+
+Using a two-sample t-test for proportions, we get a p-value of 0.6383 and fail to
+reject the null hypothesis that males and females are equally exposed to type-II
+diabetes.
+
+So, both of our tests failed to reject the null. 
+
+***
+
+## Question 2:
+
+Our five favorite features are: stabilized glucose, age, first systolic blood pressure, BMI, and WHR. 
+
+First, let's make vectors subsetted by our features and store them in a list.
+
+```{r}
+groupList = list()
+
+# Stabilized glucose level:
+stab.gluc.diabetic = data[data$glyhb>=7, 4]
+stab.gluc.nondiabetic = data[data$glyhb<7, 4]
+
+groupList[[1]] = stab.gluc.diabetic
+groupList[[2]] = stab.gluc.nondiabetic
+
+# Age:
+age.diabetic = data[data$glyhb>=7, 9]
+age.nondiabetic = data[data$glyhb<7, 9]
+
+groupList[[3]] = age.diabetic
+groupList[[4]] = age.nondiabetic
+
+# First systolic blood pressure:
+bp.1s.diabetic = data[data$glyhb>=7, 14]
+bp.1s.nondiabetic = data[data$glyhb<7, 14]
+
+groupList[[5]] = bp.1s.diabetic
+groupList[[6]] = bp.1s.nondiabetic
+
+# BMI:
+bmi.diabetic = data[data$glyhb>=7, 20]
+bmi.nondiabetic = data[data$glyhb<7, 20]
+
+groupList[[7]] = bmi.diabetic
+groupList[[8]] = bmi.nondiabetic
+
+# WHR:
+whr.diabetic = data[data$glyhb>=7, 21]
+whr.nondiabetic = data[data$glyhb<7, 20]
+
+groupList[[9]] = whr.diabetic
+groupList[[10]] = whr.nondiabetic
+```
+
+Let's check for normality of samples means for each group to see if parametric t-tests are appropriate.
+
+```{r}
+plot.boot.hist = function(x){
+  boot.pop = replicate(1000, sample(x, 1000, replace=TRUE))
+  boot.pop.means = apply(boot.pop, 2, mean)
+  return(boot.pop.means)
+}
+
+pop_means = data.frame(sapply(groupList, plot.boot.hist))
+
+# Stab.glu of diabetics
+ggplot(pop_means) + geom_histogram(aes(x = pop_means[ , 1]), binwidth = 0.5, col = "white", fill = "#56B1F7") +
+  ggtitle("Histogram of Stab.Glu for Diabetics") + 
+  xlab("Glycosolated Hemoglobin") + ylab("Frequency")
+
+# Stab.glu of non-diabetics
+ggplot(pop_means) + geom_histogram(aes(x = pop_means[ , 2]), binwidth = 0.5, col = "white", fill = "#56B1F7") +
+  ggtitle("Histogram of Stab.Glu for Non-Diabetics") + 
+  xlab("Glycosolated Hemoglobin") + ylab("Frequency")
+
+# Age of diabetics
+ggplot(pop_means) + geom_histogram(aes(x = pop_means[ , 3]), binwidth = 0.4, col = "white", fill = "#56B1F7") +
+  ggtitle("Histogram of Age for Diabetics") + 
+  xlab("Glycosolated Hemoglobin") + ylab("Frequency")
+
+# Age of non-diabetics
+ggplot(pop_means) + geom_histogram(aes(x = pop_means[ , 4]), binwidth = 0.4, col = "white", fill = "#56B1F7") +
+  ggtitle("Histogram of Age for Non-Diabetics") + 
+  xlab("Glycosolated Hemoglobin") + ylab("Frequency")
+
+# bp.1sd of diabetics
+ggplot(pop_means) + geom_histogram(aes(x = pop_means[ , 5]), binwidth = 0.4, col = "white", fill = "#56B1F7") +
+  ggtitle("Histogram of bp.1sd for Diabetics") + 
+  xlab("Glycosolated Hemoglobin") + ylab("Frequency")
+
+# bp.1sd of non-diabetics
+ggplot(pop_means) + geom_histogram(aes(x = pop_means[ , 6]), binwidth = 0.4, col = "white", fill = "#56B1F7") +
+  ggtitle("Histogram of bp.1sd for Non-Diabetics") + 
+  xlab("Glycosolated Hemoglobin") + ylab("Frequency")
+
+# BMI of diabetics
+ggplot(pop_means) + geom_histogram(aes(x = pop_means[ , 7]), binwidth = 0.2, col = "white", fill = "#56B1F7") +
+  ggtitle("Histogram of BMI for Diabetics") + 
+  xlab("Glycosolated Hemoglobin") + ylab("Frequency")
+
+# BMI of non-diabetics
+ggplot(pop_means) + geom_histogram(aes(x = pop_means[ , 8]), binwidth = 0.2, col = "white", fill = "#56B1F7") +
+  ggtitle("Histogram of BMI for Non-Diabetics") + 
+  xlab("Glycosolated Hemoglobin") + ylab("Frequency")
+
+# WHR of diabetics
+ggplot(pop_means) + geom_histogram(aes(x = pop_means[ , 9]), binwidth = 0.001, col = "white", fill = "#56B1F7") +
+  ggtitle("Histogram of WHR for Diabetics") + 
+  xlab("Glycosolated Hemoglobin") + ylab("Frequency")
+
+# WHR of non-diabetics
+ggplot(pop_means) + geom_histogram(aes(x = pop_means[ , 10]), binwidth = 0.20, col = "white", fill = "#56B1F7") +
+  ggtitle("Histogram of WHR for Non-Diabetics") + 
+  xlab("Glycosolated Hemoglobin") + ylab("Frequency")
+```
+
+All of these histograms look approximately normal, so we can use t-tests.
+
+```{r}
+t.test(stab.gluc.diabetic, stab.gluc.nondiabetic, alternative="two.sided", mu=0,
+       paired=FALSE, var.equal=FALSE, conf.level=0.95)
+
+t.test(age.diabetic, age.nondiabetic, alternative="two.sided", mu=0,
+       paired=FALSE, var.equal=FALSE, conf.level=0.95)
+
+t.test(bp.1s.diabetic, bp.1s.nondiabetic, alternative="two.sided", mu=0,
+       paired=FALSE, var.equal=FALSE, conf.level=0.95)
+
+t.test(bmi.diabetic, bmi.nondiabetic, alternative="two.sided", mu=0,
+       paired=FALSE, var.equal=FALSE, conf.level=0.95)
+
+t.test(whr.diabetic, whr.nondiabetic, alternative="two.sided", mu=0,
+       paired=FALSE, var.equal=FALSE, conf.level=0.95)
+```
+
+For all of these features, we reject the null hypothesis that
+the means for those with and for those without diabetes are
+equal.
+
+***
+
+## Question 3:
+
+First let's focus on pi_bmi and find it from our data.
+
+```{r}
+X <- data$BMI[data$gender == "male" & data$glyhb <7]
+Y <- data$BMI[data$gender == "male" & data$glyhb >=7]
+n <- length(X)
+m <- length(Y)
+all.ranks <- rank(c(Y, X))
+R.prime <- sum(all.ranks[1:length(Y)])
+pi.bmi <- 1/(n*m)*(R.prime - m*(m + 1)/2)
+pi.bmi
+```
+
+Here's the built-in way to do it in R.
+
+```{r}
+data$diff <- data$gender == "male" & data$glyhb <7
+wilcox.test(bmi ~ diff, data=data) 
+```
+
+Now let's use nonparametric bootstrap to generate values of pi_bmi.
+
+```{r}
+boot <- 1:1000
+for (i in 1:1000) {
+  smp <- sample(data$BMI[data$gender == "male" & data$glyhb <7], 100, replace =T)
+  smp2 <- sample(data$BMI[data$gender == "male" & data$glyhb >=7], 100, replace =T)
+  all.ranks <- rank(c(smp2, smp))
+  R.prime <- sum(all.ranks[1:length(smp2)])
+  boot[i] <- 1/(100*100)*(R.prime - 100*(100 + 1)/2)
+}
+```
+
+Now let's make our 95% confidence interval.
+
+```{r}
+pboot.perc.pi.bmi <- quantile(boot, probs = c(0.025, 0.975))
+pboot.perc.pi.bmi
+```
+
+Now let's focus on pi_whr. Let's first find it from our data.
+
+```{r}
+X <- data$WHR[data$gender == "male" & data$glyhb <7]
+Y <- data$WHR[data$gender == "male" & data$glyhb >=7]
+n <- length(X)
+m <- length(Y)
+all.ranks <- rank(c(Y, X))
+R.prime <- sum(all.ranks[1:length(Y)])
+pi.whr <- 1/(n*m)*(R.prime - m*(m + 1)/2)
+pi.whr
+```
+
+Now let's use nonparametric bootstrap to generate values of pi_whr.
+
+```{r}
+boot <- 1:1000
+for (i in 1:1000) {
+  smp <- sample(data$WHR[data$gender == "male" & data$glyhb <7], 100, replace =T)
+  smp2 <- sample(data$WHR[data$gender == "male" & data$glyhb >=7], 100, replace =T)
+  all.ranks <- rank(c(smp2, smp))
+  R.prime <- sum(all.ranks[1:length(smp2)])
+  boot[i] <- 1/(100*100)*(R.prime - 100*(100 + 1)/2)
+}
+```
+
+Lastly, let's make our 95% confidence interval.
+
+```{r}
+pboot.perc.pi.whr <- quantile(boot, probs = c(0.025, 0.975))
+pboot.perc.pi.whr
+```
+
+***
+
+## Question 4:
+
+We have two distributions, one of WHR for glyhb >= 7 and the other of WHR for
+glyhb < 7. The first one will be our null hypothesis H0 and the second will be
+our alternative hypothesis H1.
+
+We are given the the WHR value for a new male patient. Our test will look something
+of the form: "If the man's WHR >= threshold, then the man is diabetic." If alpha =
+0.05, P_H0 (test rejects) = 0.05. So, in other words, P_H0 (wHR_man > threshold) = 0.05.
+This is simple a matter of finding a quantile now. Namely, the 95% quantile. 
+
+So first, we must find our vector for the null hypothesis. 
+
+```{r}
+male.WHRs.null = male.df[male.df$glyhb < 7,]$waist/male.df[male.df$glyhb < 7,]$hip
+male.WHRs.null
+```
+
+Now we will find the "threshold."
+
+```{r}
+threshold = quantile(male.WHRs.null, prob=0.95)
+threshold
+```
+
+Now we focus on finding the power of our test. Power is simply equal to 1 - beta. So we must find beta first. Beta is simply beta =  P_H1 (WHR_man < threshold). We can simply plug in the threshold we found above, and easily find beta.
+
+```{r}
+male.WHRs.alt = male.df[male.df$glyhb >= 7,]$waist/male.df[male.df$glyhb >= 7,]$hip
+male.WHRs.alt
+
+beta = length(which(male.WHRs.alt < threshold))/length(male.WHRs.alt)
+beta
+```
+
+Now let's plug in to find the power.
+
+```{r}
+power = 1 - beta
+power
+```
+
+***
+
+## Question 5:
+
+First let's split our data by the interval specified by Table 1.
+
+```{r}
+res <- 1:359
+i = 1
+for (bm in data$BMI) {
+  if (bm < 18.5) {
+    res[i] = 1
+  } else if (bm >= 18.5 & bm < 25) {
+    res[i] = 2
+  } else if (bm >= 25 & bm < 30) {
+    res[i] = 3
+  } else if (bm >= 30 & bm < 35) {
+    res[i] = 4
+  } else if (bm >= 35 & bm < 40) {
+    res[i] = 5
+  } else {
+    res[i] = 6
+  }
+  i = i + 1
+}
+data$bmicat <- res
+bmicat.mat <- matrix(0, 2, 6)
+
+for (i in 1:359) {
+  bmicat.mat[as.numeric(data$gender)[i] - 1, data$bmicat[i]] = bmicat.mat[as.numeric(data$gender)[i] - 1, data$bmicat[i]] + 1
+}
+```
+
+Now, let's run a chi-square test of homogeneity.
+
+```{r}
+chisq.test(bmicat.mat)
+```
+
+Our p-value, 0.0001191, is much less than 0.01. So, our results our very significant and we reject the null hypothesis which states that the distributions of BMI among the genders are the same. 
+
+Now let's split our data according to Table 2. 
+
+```{r}
+res <- 1:359
+i = 1
+for (wh in data$WHR) {
+  ag = data$age[i]
+  if (
+      ((data$gender[i] == "male") & ((wh < 0.83 & ag < 30) | (wh < 0.84 & ag < 40 & ag >= 30) | (wh < 0.88 & ag < 50 & ag >= 40) | (wh < 0.90 & ag < 60 & ag >= 50) |(wh < 0.91 & ag >= 60))) |
+      ((data$gender[i] == "female") & ((wh < 0.71 & ag < 30) | (wh < 0.72 & ag < 40 & ag >= 30) | (wh < 0.73 & ag < 50 & ag >= 40) | (wh < 0.74 & ag < 60 & ag >= 50) |(wh < 0.76 & ag >= 60)))
+    ) 
+  {
+    res[i] = 1
+  } else if (
+      ((data$gender[i] == "male") & ((wh >= 0.83 & wh < 0.89 & ag < 30) | (wh >= 0.84 & wh < 0.92 & ag < 40 & ag >= 30) | (wh >= 0.88 & wh < 0.96 & ag < 50 & ag >= 40) | (wh >= 0.90 & wh < 0.97 & ag < 60 & ag >= 50) |(wh >= 0.91 & wh < 0.99 & ag >= 60))) |
+      ((data$gender[i] == "female") & ((wh >= 0.71 & wh < 0.78 & ag < 30) | (wh >= 0.72 & wh < 0.79 & ag < 40 & ag >= 30) | (wh >= 0.73 & wh < 0.80 & ag < 50 & ag >= 40) | (wh >= 0.74 & wh < 0.82 & ag < 60 & ag >= 50) |(wh >= 0.76 & wh < 0.84 & ag >= 60)))
+    )
+  {
+    res[i] = 2
+  } else if (
+    ((data$gender[i] == "male") & ((wh > 0.94 & ag < 30) | (wh > 0.96 & ag < 40 & ag >= 30) | (wh > 1.00 & ag < 50 & ag >= 40) | (wh < 1.02 & ag < 60 & ag >= 50) |(wh < 1.03 & ag >= 60))) |
+    ((data$gender[i] == "female") & ((wh > 0.82 & ag < 30) | (wh > 0.84 & ag < 40 & ag >= 30) | (wh > 0.87 & ag < 50 & ag >= 40) | (wh > 0.88 & ag < 60 & ag >= 50) |(wh > 0.90 & ag >= 60)))  
+  ) 
+  {
+    res[i] = 4
+  } else {
+    res[i] = 3
+  }
+  i = i + 1
+}
+data$whrcat <- res
+whrcat.mat <- as.matrix(table(data$gender, data$whrcat)[2:3, ])
+```
+
+Now we can run another chi-square test of homogeneity. 
+
+```{r}
+chisq.test(whrcat.mat)
+```
+
+Our p-value, whic is < 2.2e-16, is much less than 0.01. So, our results our very significant and we reject the null hypothesis which states that the distributions of WHR among the genders are the same. 
+
+***
+
+## Question 6:
+
+To test both features, and to see if they interact, let's run a Two-Way ANOVA test. 
+
+```{r}
+results = aov(glyhb ~ bmicat * whrcat, data = data)
+summary(results)
+```
+
+With a p-value of 0.8838, we fail to reject the null which states that the features do not interact. BMI was significant while WHR was not. BMI is more sensitive to glyhb because it has more variability across the groups.
+
+This is consistent with the answer of 3.3. If we look at the confidence intervals in 3.3, we observe that there is a greater difference in the ranges that we get for diabetics and non-diabetics for BMI than for WHR. 
+
+***
+
+# Part 5: Regression
+
+***
+
+## Question 1
+
+First let's create our linear model. The most relevant features we selected were: Stabilized Glucose (stab.glu), Age (age), First Systolic Blood Pressure (bp.1s), Waist to Hip Ratio (WHR), & Body Mass Index (BMI).
+
+```{r}
+lm.yhat = lm(glyhb ~ stab.glu + age + bp.1s + WHR + BMI, data = data)
+```
+
+Now let's use the predict function to find our predicted values of glyhb. 
+
+```{r}
+features_data = data[ , c("stab.glu", "age", "bp.1s", "WHR", "BMI")]
+y_hat = predict(lm.yhat, data = features_data)
+```
+
+Let's convert our predictions and our actual glyhb values over to logical vectors. This will help us compute the predicted error rate. 
+
+Let's first convert the predicted values. 
+
+```{r}
+y_hat_diabetes = c()
+y_hat_diabetes[y_hat >= 7] = TRUE
+y_hat_diabetes[y_hat < 7] = FALSE
+data$y_hat_diabetes = y_hat_diabetes
+```
+
+Now let's convert the actual values.
+
+```{r}
+y_actual_diabetes = c()
+y_actual_diabetes[glyhb >= 7] = TRUE
+y_actual_diabetes[glyhb < 7] = FALSE
+data$y_actual_diabetes = y_actual_diabetes
+```
+
+Lastly, let's compute our predictive error rate.
+
+```{r}
+error_table = table(y_hat_diabetes, y_actual_diabetes)
+error_table
+pred_error = (error_table[2, 1] + error_table[1, 2]) / sum(error_table)
+pred_error
+```
+
+***
+
+## Question 2
+
+Let's first compute the False Positives Rate. we can use our error_table variable to easily do this.
+
+```{r}
+false_positive = error_table[2, 1] / sum(error_table[ , 1])
+false_positive
+```
+
+Now let's compute the False Negatives Rate.
+
+```{r}
+false_negative = error_table[1, 2] / sum(error_table[ , 2])
+false_negative
+```
+
+To modify lambda such that our False Negatives Rate is at most 10%, we need to find the threshold such that P(y_hat <= threshold | glyhb >= 7) <= 0.1. The threshold which fulfills this will be our modified lambda and is simply the 10th quantile.
+
+First let's find the y_hat for the set of people who truly have diabetes.
+```{r}
+all = y_hat[glyhb >= 7]
+```
+
+Now let's find the 10th quantile of this to find our threshold, and thereby find our new lambda. 
+
+```{r}
+lambda_new = quantile(all, probs = 0.1)
+lambda_new
+```
+
+Now let's find our False Positive Rate with this new lambda value.
+
+```{r}
+FPR_new = mean(y_hat[glyhb < 7] >= lambda_new)
+FPR_new
+```
+
+Our False Positives Rate now increases. This makes sense. In essense, our False Positive Rate is our Type I error, and our False Negative Rate is our Type II error. When we decreased our False Negative Rate, we were decreasing our Type II Error, which in turn increases our Type I error, which increases our False Positive Rate. 
+
+***
+
+## Question 3
+
+First let's find the features with the largest influence. To do this, we fill first need to put all our features on the same scale, so that large magnitudes across the features all follow the same distribution. We will standardize each feature so that each one follows a N(0,1) distribution. 
+
+```{r}
+standard_features = cbind(1, apply(features_data, 2, scale))
+```
+
+To test for the largest influence, we will run a t-test testing that each beta coefficient is zero. To do this, we need to first find sigma hat squared.
+
+```{r}
+X = standard_features
+Y = glyhb
+XTX = t(X)%*%X 
+XTX.inv = solve(XTX)
+RSS = t(Y)%*%Y - t(Y) %*% X %*% XTX.inv %*% t(X) %*%Y
+RSS
+n = nrow(data) 
+p = 6 
+sigma2.hat = RSS/(n-p)
+sigma2.hat
+
+```
+
+Now that we have sigma hat squared, we can find the t statistics for each beta hat coefficient.
+
+```{r}
+beta.hat = XTX.inv%*%t(X)%*%Y
+beta.hat
+
+t_stat = c()
+for (i in 1:5){
+  t_stat[i] = abs(beta.hat[i + 1] - 0)/(sqrt(sigma2.hat * XTX.inv[i + 1, i + 1])) 
+}
+```
+
+Lastly, we can find our p-values for each coefficient.
+```{r}
+
+p_vals = 2*(1 - pt(t_stat, n-p))
+p_vals
+```
+
+Our first two features, stab.glu and age, are significant and for each we reject the null which states that that particular feature has no effect. In other words, stab.glu and age are two features that we should absolutely keep in our model!
+
+For the other three features, bp.1s, WHR, & BMI, we fail to reject the null and cannot say that b_feature != 0. 
+
+***
+
+## Question 4
+
+We did not conclude that both ratios interact. If we had, we could use this information to improve our regression. We would do so by using an asterisk instead of a plus sign between BMI and WHR in our lm function, which would add a term to the regression for the interaction effect.
+
+***
+
+## Question 5
+
+First let's find the residuals.
+
+```{r}
+res = y_hat - glyhb
+```
+
+Now let's make our three plots. First let's plot the residuals as a function of stab.glu.
+
+```{r}
+res_data = cbind(res = res, features_data)
+ggplot(res_data, aes(x = stab.glu, y = res)) +
+    geom_point(shape = 16, col = "#56B1F7", size = 3) + 
+    xlab("Stabilized Glucose") + 
+    ylab("Residuals") + 
+    ggtitle("Residuals vs. Stabilized Glucose")
+```
+
+Now let's plot the residuals as a function of BMI.
+
+```{r}
+ggplot(res_data, aes(x = BMI, y = res)) +
+    geom_point(shape = 16, col = "#56B1F7", size = 3) + 
+    xlab("BMI") + 
+    ylab("Residuals") + 
+    ggtitle("Residuals vs. BMI")
+```
+
+Lastly, let's plot the residuals as a function of WHR.
+
+```{r}
+ggplot(res_data, aes(x = WHR, y = res)) +
+    geom_point(shape = 16, col = "#56B1F7", size = 3) + 
+    xlab("WHR") + 
+    ylab("Residuals") + 
+    ggtitle("Residuals vs. WHR")
+```
+
+For the first residual plot, our residuals seem a bit clustered, but then expand farther away as we move to the right on the x axis. 
+
+The second and third residual plots seem to have random scatter, and a somewhat constant variance. 
+
+However, maybe a log transformation will help stabilize the variance more and help it become constant. 
+
+Let's build our log linear model.
+
+```{r}
+lm.yhat.log = lm(log(glyhb) ~ log(stab.glu) + log(age) + log(bp.1s) + log(WHR) + log(BMI), data = data)
+```
+
+Now let's use the predict function to find our predicted values of glyhb.
+
+```{r}
+features_data = data[ , c("stab.glu", "age", "bp.1s", "WHR", "BMI")]
+y_hat = exp(predict(lm.yhat.log, data = features_data))
+y_hat
+```
+
+Now, let's plot all three residual plots again.
+
+```{r}
+res.log = y_hat - glyhb
+res_data_log = cbind(res = res.log, features_data)
+ggplot(res_data_log, aes(x = stab.glu, y = res)) +
+    geom_point(shape = 16, col = "#56B1F7", size = 3) + 
+    xlab("Stabilized Glucose") + 
+    ylab("Residuals") + 
+    ggtitle("Logged: Residuals vs. Stabilized Glucose")
+
+ggplot(res_data_log, aes(x = BMI, y = res)) +
+    geom_point(shape = 16, col = "#56B1F7", size = 3) + 
+    xlab("BMI") + 
+    ylab("Residuals") + 
+    ggtitle("Logged: Residuals vs. BMI")
+
+
+ggplot(res_data_log, aes(x = WHR, y = res)) +
+    geom_point(shape = 16, col = "#56B1F7", size = 3) + 
+    xlab("WHR") + 
+    ylab("Residuals") + 
+    ggtitle("Logged: Residuals vs. WHR")
+```
+
+For the first variable, stab.glu, our residuals shrunk down a lot on the y-axis scale, and are therefore more uniformly distributed. Thus, the log transformation helped.
+
+For both BMI and WHR, our residuals become more uniform as well as the ranges of values that our residuals take on become narrower. Thus, the log transformation helped. 
+
+***
+
+## Question 6
+
+To perform logistic regression, we will first create a logical vector of whether patients have diabetes or not.
+
+```{r}
+diabetic.binary <- as.numeric(glyhb >= 7)
+```
+
+Now we can use the built-in glm function in R to help us create a logistic model. We will need to be sure the pass in binomial(logit) as the argument for family, since our model is logistic and our outcome is binary. 
+
+```{r}
+standard_features = data.frame(standard_features)
+glm.yhat <- glm(diabetic.binary ~ stab.glu + age + bp.1s + WHR + BMI, data = standard_features, family=binomial(logit))
+```
+
+Now we can predict the patients' glyhb values with our logistic model.
+
+```{r}
+y_hat2 = predict(glm.yhat, type="response")
+```
+
+Now that we have the probabilities for each patient, we need to find a threshold to classify our patients by. In other words, we need a threshold such that a patient with a probability greater than our threshold is classified as having diabetes, and a patient with a probability less than or equal to our threshold is classified as not having diabetes. 
+
+Well, our first instinct was to use 0.5 as our threshold and find our Predictive Error Rate, False Positive Rate, and False Negative Rate. 
+
+```{r}
+TN = sum(y_hat2 > 0.5 & diabetic.binary) # True negative
+FN = sum(y_hat2 < 0.5 & diabetic.binary) # False negative
+TP = sum(y_hat2 < 0.5 & !diabetic.binary) # True positive
+FP = sum(y_hat2 > 0.5 & !diabetic.binary) # False positive
+
+PER = (FN + FP) / sum(TN + FN + TP + FP)
+PER
+
+FPR = FP / (FP + TP)
+FPR
+
+FNR = FN / (FN + TN)
+FNR
+```
+
+Because we are dealing with a medical condition here, we must be extra sensitive towards our False Negative Rate as telling a patient that they don't have diabetes when they really do is more harmful than telling a patient they have diabetes when they really don't. 
+
+So, now let's plot each error rate as a function of probability to help us choose which threshold value works best. 
+
+The following function will help us plot these graphs. 
+
+```{r}
+errs = function(prob){
+TN = sum(y_hat2 > prob & diabetic.binary) # True negative
+FN = sum(y_hat2 < prob & diabetic.binary) # False negative
+TP = sum(y_hat2 < prob & !diabetic.binary) # True positive
+FP = sum(y_hat2 > prob & !diabetic.binary) # False positive
+
+PER = (FN + FP) / (TN + FN + TP + FP)
+FPR = FP / (FP + TP)
+FNR = FN / (FN + TN)
+
+return(c(PER, FPR, FNR))
+}
+```
+
+Now let's make a data frame to input in ggplot to help us create these three plots.
+
+```{r}
+x = seq(0, 1, by = 0.01)
+y = t(sapply(x, errs))
+colnames(y) = c("PER", "FPR", "FNR")
+error_data = data.frame(cbind(x = x, y))
+head(error_data)
+```
+
+Now let's plot all three curves on one plot to get a nice visual of what's happening.
+
+```{r}
+ggplot(error_data, aes(x)) + 
+  geom_line(aes(y = PER, colour = "PER"), size = 1.5) + 
+  geom_line(aes(y = FPR, colour = "FPR"), size = 1.5) +
+  geom_line(aes(y = FNR, colour = "FNR"), size = 1.5) +
+  xlab("Probabilty") + 
+  ylab("Error Rate") + 
+  ggtitle("Error Rate vs. Probability")
+```
+
+From our visual above, it seems as if a probability of 0.125 will fit best for all three errors in one consideration. This is simply the x value at which all three lines intercept.
+
+So, for our logistic model, we state that if a predicted probability is greater than 0.125, then the patient has diabetes. Otherwise, they do not have diabetes. 
+
+In Section 5.2 we had the following Error Rates: False Positive = 0.02622951 and False Negative = 0.3518519. For our logistic model, using a threshold of 0.124, we have the following Error Rates: False Positive = 0.1344262 and False Negative = 0.1296296.
+
+With logistic regression, we were able to adjust and make our model more stable. By this, we mean that both error rates and close and we don't sacrifice too much of one for the other. 
+
+***
+
+## Question 7
+
+First let's run our linear model on the test set. We will simply repeat the steps from above. 
+
+```{r}
+data_test = read.csv("diabetes_test.csv")
+data_test$BMI = 703 * (data_test$weight / (data_test$height)^2)
+data_test$WHR = data_test$waist / data_test$hip
+features_data2 = data_test[ , c("stab.glu", "age", "bp.1s", "WHR", "BMI")]
+y_hat2 = predict(lm.yhat, newdata = features_data2)
+
+y_hat_diabetes = c()
+y_hat_diabetes[y_hat2 >= 7] = TRUE
+y_hat_diabetes[y_hat2 < 7] = FALSE
+data_test$y_hat_diabetes = y_hat_diabetes
+
+y_actual_diabetes = c()
+y_actual_diabetes[data_test$glyhb >= 7] = TRUE
+y_actual_diabetes[data_test$glyhb < 7] = FALSE
+data_test$y_actual_diabetes = y_actual_diabetes
+
+error_table = table(y_hat_diabetes, y_actual_diabetes)
+error_table
+
+pred_error = (error_table[2, 1] + error_table[1, 2]) / sum(error_table)
+pred_error
+
+FPR.test = error_table[2, 1] / sum(error_table[ , 1])
+FPR.test
+
+FNR.test = error_table[1, 2] / sum(error_table[ , 2])
+FNR.test
+```
+
+Using our linear regression model leads to an overall error prediction rate of 0.0625. The False Positives Rate is 0, and the False Negatives Rate is 0.25.
+
+Now let's use our logistic model where our threshold is 0.125.
+
+```{r}
+standard_features2 = data.frame(cbind(1, apply(features_data2, 2, scale)))
+y_hat2 = predict(glm.yhat, newdata = standard_features2, type="response")
+```
+
+Now let's use our errs function from above to find the error rates. This will work as we will chang the diabetic.binary vector to the current 16 patients outcome of diabetes and rename the y_hat2 vector to its current values of probabilities. 
+
+```{r}
+diabetic.binary = as.numeric(data_test$glyhb >= 7)
+errs(0.125)
+```
+
+So we see that our logistic regression model leads to an overall error prediction rate of 0.0625. The False Positives Rates is 0 and the False Negatives Rates is 0.25. These are the exact error rates we got from our linear model.
+
+Thus, neither model did better than the other when applied to our test set. Thus, we do obtain similary performance. This is probably because we used the same training set and because the test set is very small. With only 16 patients in the test set, it is hard to see variance between the two models. Or rather, a difference in any error rate. 
